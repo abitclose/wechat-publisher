@@ -41,7 +41,7 @@
 4. **交付目标 4 (质量与测试套件)**：编写 `tests/test_typeset_cards.py` 自动化测试套件，覆盖三种卡片渲染、字数上限防御与数据校验，保证 100% PASS。
 
 ### 1.4 实施前 Baseline Commit ID 与分支锁定 (Baseline Locking)
-- **当前仓库 (`wechat-publisher`)**：当前分支 `main` | 起点 Commit ID `84754be`
+- **当前仓库 (`wechat-publisher`)**：当前分支 `feature/001-typeset-cards-pipeline` | 起点 Commit ID `21914f1` (派生自 `main`)
 
 ---
 
@@ -268,7 +268,7 @@ safe_text = html.escape(raw_text).replace("\n", "<br/>")
 ### 6.3 双向回滚预案
 - 实施出现不可逆异常时，通过 Git 一键回滚到初始基线：
   ```bash
-  git reset --hard 84754be
+  git reset --hard 21914f1
   ```
 
 ---
