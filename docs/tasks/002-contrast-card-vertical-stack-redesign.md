@@ -2,7 +2,7 @@
 
 > **任务编号**：`docs/tasks/002-contrast-card-vertical-stack-redesign.md`  
 > **所属专题**：[`docs/tasks/README.md`](README.md)（排版卡片体系演进与移动端体验优化）  
-> **任务状态**：`待评审 (Ready for Review)`  
+> **任务状态**：`已完成 (Completed)`  
 > **涉及端与模块**：`assets/typeset-card/contrast.html` (对比卡模板与样式)、`scripts/typeset_card_gen.py` (卡片渲染器与数据组装)、`tests/test_typeset_cards.py` (自动化测试套件)、`gen.py` (流水线编排入口)  
 > **创建时间**：2026-10-03  
 > **分支策略**：经用户明确确认，直接在当前特性分支 `feature/001-typeset-cards-pipeline` 继续推进实施，不新建独立分支  
@@ -158,7 +158,7 @@ TAG_PATTERN = re.compile(r'^\s*(?:\[|【|［)([^\]】］]{2,8})(?:\]|】|］)\s*
 ## 📋 四、 分步实施清单 (带显式操作意图标记与消除方案加固)
 
 ### 阶段 1：HTML 模板与非对称光影重构
-- [ ] 步骤 1.1: `[REFACTOR]` 重构 [`assets/typeset-card/contrast.html`](file:///home/white/github/wechat-publisher/assets/typeset-card/contrast.html)
+- [x] 步骤 1.1: `[REFACTOR]` 重构 [`assets/typeset-card/contrast.html`](file:///home/white/github/wechat-publisher/assets/typeset-card/contrast.html)
   - 移除固定 `1350px` 高度与绝对定位，改为 `width: 1080px; height: auto; background: transparent;` 流式文档；
   - 容器重构为纵向堆叠 `.stack`，要点横向享有 910px 完整宽度；
   - 实现误区卡（暗红、低饱和、冷灰字）与正解卡（翠绿、高亮纯白、柔光扩散）视觉层级不对称；
@@ -169,23 +169,23 @@ TAG_PATTERN = re.compile(r'^\s*(?:\[|【|［)([^\]】］]{2,8})(?:\]|】|］)\s*
   - 🔍 即时验证：检查模板内占位符完整性（`{{KICKER}}`, `{{TITLE}}`, `{{LEFT_TITLE}}`, `{{LEFT_CONTENT}}`, `{{RIGHT_TITLE}}`, `{{RIGHT_CONTENT}}`, `{{CONCLUSION}}`）。
 
 ### 阶段 2：渲染脚本自适应高度与骨架词解析增强
-- [ ] 步骤 2.1: `[ENHANCE]` 升级 [`scripts/typeset_card_gen.py`](file:///home/white/github/wechat-publisher/scripts/typeset_card_gen.py) 的 `build_contrast_html()`
+- [x] 步骤 2.1: `[ENHANCE]` 升级 [`scripts/typeset_card_gen.py`](file:///home/white/github/wechat-publisher/scripts/typeset_card_gen.py) 的 `build_contrast_html()`
   - 采用高精度正则提取骨架词标签，注入 `<span class="point-badge">` 与 `<span class="point-text">`；
   - 保留并美化 `bad_desc` / `good_desc` 单段落回退渲染；
-- [ ] 步骤 2.2: `[ENHANCE]` 扩展 `render_card()` 动态高度自适应与视口缓冲区消除截断隐患
+- [x] 步骤 2.2: `[ENHANCE]` 扩展 `render_card()` 动态高度自适应与视口缓冲区消除截断隐患
   - 将 `is_dynamic_height = card_type in ("quote", "contrast")`；
   - **加固消除方案**：针对动态卡片，将 Chrome 虚拟视口窗口放大至 `--window-size=1080,3600`，彻底消除长内容在渲染时被截断的隐患；
   - Chrome 以 `--default-background-color=00000000`（透明底）模式运行；
   - PIL 阶段通过 `im.getbbox()` 自动识别真实像素高度并裁切，0 白边，高度严丝合缝；
-- [ ] 步骤 2.3: `[ENHANCE]` 同步更新 `gen.py:298` dry-run 描述为 `(2160x自适应高度 Retina)`；
+- [x] 步骤 2.3: `[ENHANCE]` 同步更新 `gen.py:298` dry-run 描述为 `(2160x自适应高度 Retina)`；
   - 🔍 即时验证：单卡渲染命令执行并校验输出尺寸与透明裁剪结果。
 
 ### 阶段 3：自动化测试更新与全链路端到端回归
-- [ ] 步骤 3.1: `[ENHANCE]` 更新 [`tests/test_typeset_cards.py`](file:///home/white/github/wechat-publisher/tests/test_typeset_cards.py)
+- [x] 步骤 3.1: `[ENHANCE]` 更新 [`tests/test_typeset_cards.py`](file:///home/white/github/wechat-publisher/tests/test_typeset_cards.py)
   - 将对比卡尺寸断言从固定 2700 升级为自适应区间校验（`assert im.size[0] == 2160 and 1200 <= im.size[1] <= 3600`）；
   - 补充骨架词标签渲染、单段落文本渲染与上下堆叠结构校验用例；
-  - 🔍 即时验证：`pytest tests/test_typeset_cards.py -v`（19/19 PASSED）；
-- [ ] 步骤 3.2: `[ENHANCE]` 重新渲染当前推文卡片资产
+  - 🔍 即时验证：`pytest tests/test_typeset_cards.py -v`（21/21 PASSED）；
+- [x] 步骤 3.2: `[ENHANCE]` 重新渲染当前推文卡片资产
   - 重新渲染 `mp-articles/main/2026-10-03-post-211754/images/card_02.png`；
   - 校验图片尺寸与视觉质量。
 
@@ -221,15 +221,15 @@ TAG_PATTERN = re.compile(r'^\s*(?:\[|【|［)([^\]】］]{2,8})(?:\]|】|］)\s*
 
 ## ✅ 七、 验收标准与测试回归清单 (Acceptance Criteria & Test Suite)
 
-- [ ] 单元测试全部通过：`pytest tests/test_typeset_cards.py -v`；
-- [ ] 全量测试无破坏：`pytest tests/test_html_converter.py -v`；
-- [ ] 产物图像验证：`card_02.png` 呈现上下堆叠布局，误区暗哑、正解发光，内容紧凑无多余空白；
-- [ ] 移动端真机可读性：单条要点文字一行舒展，不再出现密集多行折行。
+- [x] 单元测试全部通过：`pytest tests/test_typeset_cards.py -v` (21/21 PASSED)；
+- [x] 全量测试无破坏：`pytest tests/test_html_converter.py -v` (23/23 PASSED)；
+- [x] 产物图像验证：`card_02.png` 呈现上下堆叠布局，误区暗哑、正解发光，内容紧凑无多余空白；
+- [x] 移动端真机可读性：单条要点文字一行舒展，不再出现密集多行折行。
 
 ---
 
 ## 📦 八、 交付物归档与状态同步 (Deliverables & Status Sync)
 
-- [ ] 核心模板与脚本修改入库（Conventional Commit 规范，仅本地 commit，未经允许不 push）；
-- [ ] 任务大盘 [`docs/tasks/README.md`](README.md) 状态同步更新；
-- [ ] 本地重新生成 `post-211754` 最新配图并提供一键发布命令。
+- [x] 核心模板与脚本修改入库（Conventional Commit 规范，仅本地 commit，未经允许不 push）；
+- [x] 任务大盘 [`docs/tasks/README.md`](README.md) 状态同步更新；
+- [x] 本地重新生成 `post-211754` 最新配图并提供一键发布命令。

@@ -8,9 +8,10 @@ tests/test_typeset_cards.py
 1. [测试 1: 数据转义与安全性]
    - safe_escape 与 apply_accent_highlight：特殊字符、双引号、换行符 \\n 转 <br/>、HTML 标签 <script> 转义；
    - 字数自适应：字数超过 40 字时 quote 模板自动附加 long-text 类，40 字以内不附加；
+   - 对比卡关键词提取：[ 骨架词 ] 与 全角冒号自动提炼为小胶囊，支持单段落纯文本回退渲染；
 2. [测试 2: 单卡本地离线 Chrome 渲染]
    - quote, contrast, checklist 三类卡片分别调用 render_card 渲染；
-   - 断言输出文件存在，且通过 PIL 打开时尺寸严格为 2160x2700，格式为 PNG；
+   - 断言输出文件存在，quote/contrast 宽度固定 2160 且高度自适应，checklist 严格为 2160x2700，格式为 PNG；
 3. [测试 3: 批量文件卡片渲染]
    - render_cards_from_file 处理包含 2 张卡片配置的 JSON 文件，验证文件正确落盘；
    - 验证 list 与 dict 格式的卡片数据契约解析；
@@ -118,6 +119,38 @@ class TestDataEscapingAndSecurity:
         long_html = build_quote_html(dummy_template, {"quote": long_quote})
         assert 'class="quote long-text"' in long_html
 
+    def test_contrast_card_keyword_badges(self) -> None:
+        """测试包含 '[ 逻辑脱节 ]' 与 '黄金3秒：' 的 points 能否在组装 HTML 中正确生成 <span class="point-badge">。"""
+        dummy_template = "{{LEFT_CONTENT}}\n{{RIGHT_CONTENT}}"
+        data: Dict[str, Any] = {
+            "left_points": [
+                "[ 逻辑脱节 ] 素材生搬硬套模板，声画脱节",
+                "【算法封杀】暴力抽帧依然被判重",
+            ],
+            "right_points": [
+                "黄金3秒：人工深度打磨高反差开头",
+                "交付杠杆: 工具承担智能打轴与字幕",
+            ],
+        }
+        rendered = build_contrast_html(dummy_template, data)
+        assert '<span class="point-badge">[逻辑脱节]</span>' in rendered
+        assert '<span class="point-badge">[算法封杀]</span>' in rendered
+        assert '<span class="point-badge">[黄金3秒]</span>' in rendered
+        assert '<span class="point-badge">[交付杠杆]</span>' in rendered
+        assert '<span class="point-text">素材生搬硬套模板，声画脱节</span>' in rendered
+        assert '<span class="point-text">人工深度打磨高反差开头</span>' in rendered
+
+    def test_contrast_card_single_paragraph_desc(self) -> None:
+        """测试仅传入 bad_desc / good_desc 单段落纯文本时能否正确渲染为 .point-desc。"""
+        dummy_template = "{{LEFT_CONTENT}}\n{{RIGHT_CONTENT}}"
+        data: Dict[str, Any] = {
+            "bad_desc": "旧模式：全量手动复制粘贴，耗时且易错。",
+            "good_desc": "新模式：智能自动化流水线，极速交付且零失误。",
+        }
+        rendered = build_contrast_html(dummy_template, data)
+        assert '<div class="point-desc">旧模式：全量手动复制粘贴，耗时且易错。</div>' in rendered
+        assert '<div class="point-desc">新模式：智能自动化流水线，极速交付且零失误。</div>' in rendered
+
 
 # ============================================================================
 # 测试 2: 单卡本地离线 Chrome 渲染 (Single Card Chrome Rendering)
@@ -150,7 +183,7 @@ class TestSingleCardChromeRendering:
             assert im.format == "PNG"
 
     def test_render_contrast_card(self, tmp_path: Path) -> None:
-        """测试 contrast 模板渲染为 2160x2700 高清 PNG。"""
+        """测试 contrast 模板自适应高度渲染为 2160 宽高清 PNG。"""
         out_png = tmp_path / "card_contrast.png"
         data: Dict[str, Any] = {
             "kicker": "PARADIGM SHIFT // 认知对撞",
@@ -179,7 +212,7 @@ class TestSingleCardChromeRendering:
         assert out_png.stat().st_size > 0
 
         with Image.open(out_png) as im:
-            assert im.size == (2160, 2700)
+            assert im.size[0] == 2160 and 1200 <= im.size[1] <= 3600
             assert im.format == "PNG"
 
     def test_render_checklist_card(self, tmp_path: Path) -> None:
@@ -284,7 +317,8 @@ class TestBatchFileRendering:
         custom_png = out_dir / "contrast_custom.png"
         assert custom_png.is_file()
         with Image.open(custom_png) as im:
-            assert im.size == (2160, 2700)
+            assert im.size[0] == 2160 and 1200 <= im.size[1] <= 3600
+            assert im.format == "PNG"
 
 
 # ============================================================================
