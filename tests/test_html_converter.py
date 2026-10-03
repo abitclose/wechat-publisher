@@ -191,6 +191,35 @@ def test_image_rendered_with_style(theme):
     assert "style=" in html
 
 
+def test_card_images_suppress_redundant_caption(theme):
+    """排版卡 (card_*.png / 含有 '卡') 严禁在其下方输出冗余的 caption 说明文字。"""
+    md = (
+        "![创作者洞察 金句卡](images/card_01.png)\n\n"
+        "![工作流对比卡](images/card_02.png)\n\n"
+        "![](images/card_03.png)\n"
+    )
+    html = _convert(md, theme)
+
+    # 包含图片
+    assert "images/card_01.png" in html
+    assert "images/card_02.png" in html
+    assert "images/card_03.png" in html
+
+    # 严禁生成多余注记段落
+    assert "创作者洞察 金句卡</p>" not in html
+    assert "工作流对比卡</p>" not in html
+
+
+def test_regular_images_preserve_caption(theme):
+    """普通图表/摄影插图保持正常的图注 caption 输出。"""
+    md = "![图 1: 核心指标增长趋势](https://example.com/growth_trend.png)"
+    html = _convert(md, theme)
+
+    assert "<img" in html
+    assert "https://example.com/growth_trend.png" in html
+    assert "图 1: 核心指标增长趋势</p>" in html
+
+
 def test_ordinary_http_link_kept(theme):
     """Normal https: links should render fine (sanity check for #5)."""
     md = "参考 [文档](https://example.com/doc)"

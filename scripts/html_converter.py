@@ -483,7 +483,19 @@ def convert_markdown_to_wechat_html(
             alt = html.escape(alt_raw, quote=True)
             src = html.escape(src_raw, quote=True)
             html_parts.append(f'<p style="text-align:center;margin:16px 0;"><img src="{src}" alt="{alt}" style="{styles["img"]}"/></p>')
-            if alt_raw:
+
+            # 图下注记 (caption) 智能门禁：
+            # 排版卡 (typeset-card) 与封面图内部已有完整设计语言与排版，严禁在其下方输出冗余注记；
+            # 仅对普通的纪实照片/图表保留图注展示。
+            is_card_or_cover = (
+                "card_" in src_raw.lower()
+                or "typeset-card" in src_raw.lower()
+                or "cover." in src_raw.lower()
+                or alt_raw.endswith("卡")
+                or alt_raw.lower().endswith("card")
+                or alt_raw.lower() in ("cover", "card_01", "card_02", "card_03")
+            )
+            if alt_raw and not is_card_or_cover:
                 html_parts.append(f'<p style="{styles["caption"]}">{alt}</p>')
             prev_was_h2 = False
             continue
