@@ -334,20 +334,37 @@ function extractImageBytes(payload: unknown): Promise<Uint8Array> {
 }
 
 function extractInlineImage(payload: unknown): Uint8Array | null {
-  const dataUrl = findString(payload, (value) => value.startsWith("data:image/"));
-  const base64Value = dataUrl ?? findString(payload, (value) => isLikelyImageBase64(value));
-  if (!base64Value) return null;
-  const raw = base64Value.startsWith("data:image/")
-    ? base64Value.slice(base64Value.indexOf(",") + 1)
-    : base64Value;
-  return Uint8Array.from(Buffer.from(raw, "base64"));
+  const dataUrlString = findString(payload, (value) => value.includes("data:image/"));
+  if (dataUrlString) {
+    const match = dataUrlString.match(/data:image\/[a-zA-Z0-9.+_-]+;base64,([A-Za-z0-9+/=\r\n]+)/);
+    if (match && match[1]) {
+      const cleanBase64 = match[1].replace(/[\r\n\s]/g, "");
+      return Uint8Array.from(Buffer.from(cleanBase64, "base64"));
+    }
+  }
+
+  const base64Value = findString(payload, (value) => isLikelyImageBase64(value));
+  if (base64Value) {
+    const cleanBase64 = base64Value.replace(/[\r\n\s]/g, "");
+    return Uint8Array.from(Buffer.from(cleanBase64, "base64"));
+  }
+
+  return null;
 }
 
 function extractImageUrl(payload: unknown): string | null {
-  return findString(payload, (value) =>
+  const direct = findString(payload, (value) =>
     value.startsWith("https://") &&
     (value.includes(".png") || value.includes(".jpg") || value.includes(".jpeg") || value.includes(".webp") || value.includes("image"))
   );
+  if (direct) return direct;
+
+  const mdMatch = findString(payload, (value) => /https:\/\/[^\s)]+\.(?:png|jpg|jpeg|webp)/i.test(value));
+  if (mdMatch) {
+    const m = mdMatch.match(/(https:\/\/[^\s)]+\.(?:png|jpg|jpeg|webp))/i);
+    if (m) return m[1];
+  }
+  return null;
 }
 
 function findString(value: unknown, match: (text: string) => boolean): string | null {

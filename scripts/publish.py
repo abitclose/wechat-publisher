@@ -156,8 +156,12 @@ def remove_title_from_content(md_content):
 # ============================================================
 
 def _default_temp_dir() -> str:
-    """为本次运行创建一个独立的临时目录,避免并发运行互相覆盖文件。"""
-    return tempfile.mkdtemp(prefix="wechat_images_")
+    """为本次运行创建一个独立的临时目录,避免并发运行互相覆盖文件。
+    默认收敛至本仓库 generated/tmp 下,避免向系统 /tmp 泄漏临时文件。
+    """
+    repo_tmp = Path(__file__).resolve().parent.parent / "generated" / "tmp"
+    repo_tmp.mkdir(parents=True, exist_ok=True)
+    return tempfile.mkdtemp(prefix="wechat_images_", dir=str(repo_tmp))
 
 
 # ============================================================

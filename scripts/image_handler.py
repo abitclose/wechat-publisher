@@ -359,7 +359,9 @@ def process_article_images(md_content, temp_dir=None, base_dir=None):
     """
     if temp_dir is None:
         import tempfile
-        temp_dir = tempfile.mkdtemp(prefix="wechat_images_")
+        repo_tmp = Path(__file__).resolve().parent.parent / "generated" / "tmp"
+        repo_tmp.mkdir(parents=True, exist_ok=True)
+        temp_dir = tempfile.mkdtemp(prefix="wechat_images_", dir=str(repo_tmp))
     temp_dir = Path(temp_dir)
     temp_dir.mkdir(parents=True, exist_ok=True)
 
