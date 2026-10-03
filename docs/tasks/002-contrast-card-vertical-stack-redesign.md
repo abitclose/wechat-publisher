@@ -3,8 +3,9 @@
 > **任务编号**：`docs/tasks/002-contrast-card-vertical-stack-redesign.md`  
 > **所属专题**：[`docs/tasks/README.md`](README.md)（排版卡片体系演进与移动端体验优化）  
 > **任务状态**：`待评审 (Ready for Review)`  
-> **涉及端与模块**：`assets/typeset-card/contrast.html` (对比卡模板与样式)、`scripts/typeset_card_gen.py` (卡片渲染器与数据组装)、`tests/test_typeset_cards.py` (自动化测试套件)  
+> **涉及端与模块**：`assets/typeset-card/contrast.html` (对比卡模板与样式)、`scripts/typeset_card_gen.py` (卡片渲染器与数据组装)、`tests/test_typeset_cards.py` (自动化测试套件)、`gen.py` (流水线编排入口)  
 > **创建时间**：2026-10-03  
+> **分支策略**：经用户明确确认，直接在当前特性分支 `feature/001-typeset-cards-pipeline` 继续推进实施，不新建独立分支  
 > **负责人 / Agent**：Antigravity Agent  
 
 ---
@@ -28,12 +29,12 @@
    - 破局能量跃迁中轴：上下卡之间引入带有视觉动势的 `⚡ PARADIGM SHIFT // 破局跃迁 ▼` 指示桥梁；
    - 黄金法则公式胶囊：底部结论升级为醒目的琥珀金公理胶囊；
 3. **引入内容流式动态高度（Dynamic Auto-Height）**：与金句卡一致，采用 `height: auto` 与 Chrome 透明画布光栅化 + PIL `getbbox()` 像素级裁剪，彻底消灭上下冗余黑底空白；
-4. **100% 向后兼容历史数据契约**：兼容纯文本字符串列表与结构化数据，确保全量测试通过。
+4. **100% 向后兼容历史数据契约**：同时兼容 `left_points` / `right_points` 列表与单段落纯文本 `bad_desc` / `good_desc`，确保老数据全量兼容。
 
 ### 1.4 实施前 Baseline Commit ID 与分支锁定
 - **当前仓库**：`wechat-publisher`
 - **当前分支**：`feature/001-typeset-cards-pipeline`
-- **Baseline Commit**：`937ee80` (`fix(converter): deduplicate section dividers and avoid collisions before h2 headings`)
+- **Baseline Commit**：`5ca7bb1` (`docs(tasks): create Task 002 for contrast card vertical stack redesign and update tasks hub`)
 
 ---
 
@@ -48,9 +49,10 @@
    **扫描结果**：
    - `scripts/typeset_card_gen.py:35`: `SUPPORTED_TYPES = ("quote", "contrast", "checklist")`
    - `scripts/typeset_card_gen.py:113`: `def build_contrast_html(template: str, data: Dict[str, Any]) -> str:`
+   - `scripts/typeset_card_gen.py:139`: 支持 `bad_desc` / `left_desc` 单段落描述回退
    - `scripts/typeset_card_gen.py:253`: `elif card_type == "contrast": rendered_html = build_contrast_html(...)`
    - `scripts/typeset_card_gen.py:277`: 现有固定窗口高度注释，需纳入自适应高度改造
-   - `gen.py:298`: dry-run 对比卡尺寸说明
+   - `gen.py:298`: dry-run 对比卡尺寸说明（需同步为自适应高度描述）
    - `gen.py:367`: 默认卡片配置中包含 `type: contrast` 数据结构
 
 2. 🎨 **排版主题与模板扫描**：
@@ -76,6 +78,7 @@
 | **容器高度** | 写死 `height: 1350px; overflow: hidden;` | 需重构为自适应 `height: auto; background: transparent;` |
 | **视觉层级** | 左右卡片视觉权重对等（红绿平分） | 需重构为不对称光影：误区暗哑收敛，正解高光主角 |
 | **要点结构** | 仅纯文本 `point-bullet` + `point-text` | 需支持关键词胶囊 `[ 骨架词 ]`，实现 3 秒眼动定焦 |
+| **段落文本** | 仅考虑分栏下的狭窄段落 | 需补齐 `.point-desc` 单段落全宽舒展样式 |
 | **转折指示** | 无中间转折过渡，左右卡之间只有 32px 间隙 | 需新增高科技破局跃迁轴（The Shift Node） |
 | **裁剪算法** | 固定裁剪前 2700 高度，易留白边 | 需复用 PIL `im.getbbox()` 内容驱动动态高度裁剪 |
 
@@ -85,7 +88,8 @@
 | :--- | :--- | :--- |
 | `assets/typeset-card/contrast.html` | **`[REFACTOR]` 平移重构** | 保持已有占位符契约不变，将 CSS 布局全面升级为上下堆叠流动与非对称高光 |
 | `scripts/typeset_card_gen.py` | **`[ENHANCE]` 复用增强** | 在 `build_contrast_html` 中增加骨架词胶囊解析能力；将 `contrast` 纳入 `im.getbbox()` 自适应高度光栅化 |
-| `tests/test_typeset_cards.py` | **`[ENHANCE]` 增量加固** | 更新尺寸断言为自适应高度校验；补充上下堆叠 DOM 节点与关键词标签测试用例 |
+| `gen.py` | **`[ENHANCE]` 增量对齐** | 更新 dry-run 日志中关于卡片 2 的尺寸标注为自适应高度 Retina |
+| `tests/test_typeset_cards.py` | **`[ENHANCE]` 增量加固** | 更新尺寸断言为自适应高度校验；补充骨架词标签渲染与上下堆叠结构校验用例 |
 
 ---
 
@@ -103,53 +107,83 @@
   4. [`gen.py`](file:///home/white/github/wechat-publisher/gen.py)（更新 dry-run 卡片描述）
 - **单一导出入口**：`scripts/typeset_card_gen.py::render_card("contrast", data, out_path)`
 
-### 3.3 数据流转架构图
+### 3.3 界面布局与视觉架构图 (UI Specification)
 
-```mermaid
-flowchart TD
-    A["cards_data.json (contrast 配置)"] --> B["scripts/typeset_card_gen.py"]
-    B --> C["build_contrast_html() 语法解析器"]
-    C -->|智能提取骨架词标签| D["注入 assets/typeset-card/contrast.html"]
-    D --> E["中间组装 HTML (generated/tmp/)"]
-    E --> F["无头 Chrome (透明底 + 2x 缩放)"]
-    F --> G["原生 2x 截图缓冲区"]
-    G --> H["PIL im.getbbox() 像素级内容高度裁剪"]
-    H --> I["card_02.png 高清紧凑产物 (mp-articles/.../images/)"]
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ KICKER // VERSUS // 认知对撞 · 破局跃迁                      │
+│ 垃圾内容制造机 vs 资产重组流水线                                │
+│ ──────────────────────────────────────────────────────────── │
+│                                                              │
+│ ┌─ [ OLD TRAP // 淘汰模式 ] ───────────────────────────────┐ │
+│ │ ✕ 常见误区：盲目追求“一键全自动”                          │ │ ◀ 暗哑灰红底色
+│ │                                                          │ │   (视觉权重 35%，暗红微框)
+│ │  [ 逻辑脱节 ] 素材生搬硬套模板，声画与文案完全脱节       │ │   低对比冷灰白字 (#c8cdd8)
+│ │  [ 算法封杀 ] 暴力抽帧降重，仍被平台判定为低成本同质化   │ │   红叉弱化，呈现陈旧被淘汰感
+│ │  [ 无效堆叠 ] 日产百条零完播零互动，沦为沉没成本         │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│                                                              │
+│ ────────── ⚡ PARADIGM SHIFT // 破局跃迁 ──────────         │ ◀ 能量跃迁对撞中轴
+│                      ▼ 从“制造垃圾”到“精炼资产”               │   (高科技感发光指示器)
+│                                                              │
+│ ┌─ [ NEW WAY // 高手破局 ] ────────────────────────────────┐ │
+│ │ ✓ 高手正解：人机结对半自动“排产管线”                      │ │ ◀ 绝对主角！(占 65% 视觉重心)
+│ │                                                          │ │   翡翠绿霓虹微光边框
+│ │  [ 黄金3秒 ]  人工深度打磨高反差开头，锁定核心完播率     │ │   高亮纯白字 (#ffffff)
+│ │  [ 交付杠杆 ]  工具承担智能打轴、降噪字幕与多比例裁切     │ │   前缀带独立亮色属性胶囊
+│ │  [ 矩阵复用 ]  1 套打磨脚本文案，工具并行生成 5 组画面变体 │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│                                                              │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ 💡 核心法则：工具决定交付下限，人决定认知与完播上限       │ │ ◀ 琥珀金法则公式胶囊
+│ └──────────────────────────────────────────────────────────┘ │
+│                                                              │
+│ 数效笔记 · 原创复盘                   HUMAN TOUCH // QUALITY │ ◀ 极简工业风署名
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### 3.4 数据契约设计 (向后兼容保障)
+### 3.4 数据契约设计与防御式正则 (向后兼容保障)
 
-`cards_data.json` 中要点支持以下三种格式，系统自适应解析：
-1. **带方括号标签**：`"[ 逻辑脱节 ] 素材生搬硬套模板，声画与文案完全脱节"` $\rightarrow$ 自动分离出属性标签胶囊与说明正文；
-2. **带冒号标签**：`"逻辑脱节：素材生搬硬套模板..."` $\rightarrow$ 自动识别冒号前为属性标签；
-3. **传统纯文本**：`"素材生搬硬套模板，声画与文案完全脱节"` $\rightarrow$ 优雅降级为单行纯正文显示。
+在 `build_contrast_html` 中解析要点文本，使用高精度正则提取骨架词标签：
+```python
+TAG_PATTERN = re.compile(r'^\s*(?:\[|【|［)([^\]】］]{2,8})(?:\]|】|］)\s*(.+)$')
+```
+- **格式 1（中/英文括号）**：`"[ 黄金3秒 ] 人工深度打磨高反差开头"` $\rightarrow$ 渲染为 `<span class="point-badge">[ 黄金3秒 ]</span><span class="point-text">人工深度打磨...</span>`；
+- **格式 2（中文全角冒号）**：`"黄金3秒：人工深度打磨..."` $\rightarrow$ 冒号前 2~8 字符自动提炼为小胶囊；
+- **格式 3（传统纯文本）**：`"人工深度打磨高反差开头"` $\rightarrow$ 降级为单行纯正文显示，不强制切分；
+- **格式 4（单段落文本）**：若数据只提供了 `bad_desc` / `good_desc`，通过 `.point-desc` 进行全宽优雅排版。
 
 ---
 
-## 📋 四、 分步实施清单 (带显式操作意图标记)
+## 📋 四、 分步实施清单 (带显式操作意图标记与消除方案加固)
 
 ### 阶段 1：HTML 模板与非对称光影重构
 - [ ] 步骤 1.1: `[REFACTOR]` 重构 [`assets/typeset-card/contrast.html`](file:///home/white/github/wechat-publisher/assets/typeset-card/contrast.html)
-  - 移除固定 `1350px` 高度与绝对定位，改为 `width: 1080px; height: auto;` 流式文档；
-  - 容器重构为纵向堆叠 `.stack`，各卡内间距舒适展开；
-  - 实现误区卡（暗红、低饱和、冷灰字）与正解卡（翠绿、高亮、柔光扩散）视觉层级不对称；
+  - 移除固定 `1350px` 高度与绝对定位，改为 `width: 1080px; height: auto; background: transparent;` 流式文档；
+  - 容器重构为纵向堆叠 `.stack`，要点横向享有 910px 完整宽度；
+  - 实现误区卡（暗红、低饱和、冷灰字）与正解卡（翠绿、高亮纯白、柔光扩散）视觉层级不对称；
+  - 为主标题 `.hero` 增加字级防御（`font-size: 58px; line-height: 1.25;`），防止长标题挤占垂直空间；
+  - 为单段落描述补充 `.point-desc`（`font-size: 28px; line-height: 1.6; color: #dfe3ec;`）；
   - 插入居中破局跃迁轴（`⚡ PARADIGM SHIFT // 破局跃迁 ▼`）；
   - 底部重构为琥珀金法则公式胶囊；
-  - 🔍 即时验证：检查模板内占位符完整性（`{{KICKER}}`, `{{TITLE}}`, `{{LEFT_CONTENT}}`, `{{RIGHT_CONTENT}}`, `{{CONCLUSION}}`）。
+  - 🔍 即时验证：检查模板内占位符完整性（`{{KICKER}}`, `{{TITLE}}`, `{{LEFT_TITLE}}`, `{{LEFT_CONTENT}}`, `{{RIGHT_TITLE}}`, `{{RIGHT_CONTENT}}`, `{{CONCLUSION}}`）。
 
 ### 阶段 2：渲染脚本自适应高度与骨架词解析增强
 - [ ] 步骤 2.1: `[ENHANCE]` 升级 [`scripts/typeset_card_gen.py`](file:///home/white/github/wechat-publisher/scripts/typeset_card_gen.py) 的 `build_contrast_html()`
-  - 编写防守式要点解析逻辑，支持智能提取 `[ 标签 ]` 并包装为 `<span class="point-badge">`；
-- [ ] 步骤 2.2: `[ENHANCE]` 扩展 `render_card()` 动态高度自适应
+  - 采用高精度正则提取骨架词标签，注入 `<span class="point-badge">` 与 `<span class="point-text">`；
+  - 保留并美化 `bad_desc` / `good_desc` 单段落回退渲染；
+- [ ] 步骤 2.2: `[ENHANCE]` 扩展 `render_card()` 动态高度自适应与视口缓冲区消除截断隐患
   - 将 `is_dynamic_height = card_type in ("quote", "contrast")`；
-  - Chrome 统一传入大视口（`1080,2600`）配合 `--default-background-color=00000000`；
-  - PIL 阶段通过 `im.getbbox()` 自动贴合裁剪，生成紧凑无黑底留白的最终 PNG；
+  - **加固消除方案**：针对动态卡片，将 Chrome 虚拟视口窗口放大至 `--window-size=1080,3600`，彻底消除长内容在渲染时被截断的隐患；
+  - Chrome 以 `--default-background-color=00000000`（透明底）模式运行；
+  - PIL 阶段通过 `im.getbbox()` 自动识别真实像素高度并裁切，0 白边，高度严丝合缝；
+- [ ] 步骤 2.3: `[ENHANCE]` 同步更新 `gen.py:298` dry-run 描述为 `(2160x自适应高度 Retina)`；
   - 🔍 即时验证：单卡渲染命令执行并校验输出尺寸与透明裁剪结果。
 
 ### 阶段 3：自动化测试更新与全链路端到端回归
 - [ ] 步骤 3.1: `[ENHANCE]` 更新 [`tests/test_typeset_cards.py`](file:///home/white/github/wechat-publisher/tests/test_typeset_cards.py)
-  - 将对比卡尺寸断言从固定 2700 升级为自适应区间校验（`assert im.size[0] == 2160 and 1200 <= im.size[1] <= 3000`）；
-  - 补充骨架词标签渲染与上下堆叠结构校验用例；
+  - 将对比卡尺寸断言从固定 2700 升级为自适应区间校验（`assert im.size[0] == 2160 and 1200 <= im.size[1] <= 3600`）；
+  - 补充骨架词标签渲染、单段落文本渲染与上下堆叠结构校验用例；
   - 🔍 即时验证：`pytest tests/test_typeset_cards.py -v`（19/19 PASSED）；
 - [ ] 步骤 3.2: `[ENHANCE]` 重新渲染当前推文卡片资产
   - 重新渲染 `mp-articles/main/2026-10-03-post-211754/images/card_02.png`；
@@ -180,7 +214,7 @@ flowchart TD
 ### 6.2 双向回滚预案
 - 若出现非预期布局崩塌，一键快速回滚至基线：
   ```bash
-  git checkout 937ee80 -- assets/typeset-card/contrast.html scripts/typeset_card_gen.py tests/test_typeset_cards.py
+  git checkout 5ca7bb1 -- assets/typeset-card/contrast.html scripts/typeset_card_gen.py tests/test_typeset_cards.py gen.py
   ```
 
 ---
