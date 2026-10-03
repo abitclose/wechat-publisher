@@ -200,11 +200,11 @@ safe_text = html.escape(raw_text).replace("\n", "<br/>")
   - 🔍 即时验证: `python3 scripts/typeset_card_gen.py --type quote --data '{"quote":"测试金句换行\n第二行内容","accent_word":"金句"}' --output generated/tmp/test_quote.png`，校验图片分辨率为 2160×2700。
 
 ### 阶段 2：流水线编排挂载与全生命周期贯通
-- [ ] 步骤 2.1: `[ENHANCE]` 改造 `gen.py` 中的【步骤 3】：
+- [x] 步骤 2.1: `[ENHANCE]` 改造 `gen.py` 中的【步骤 3】：
   - 检查文章目录是否存在 `cards_data.json`；若无，根据文章选题智能组装默认兜底卡片数据；
   - 调用 `typeset_card_gen.py` 生成 `card_01.png` 和 `card_02.png` 保存至 `mp-articles/<account>/<slug>/images/`；
   - 自动触发临时 HTML 文件的清理；
-- [ ] 步骤 2.2: `[COMPAT]` 完善 `--dry-run` 离线演练：
+- [x] 步骤 2.2: `[COMPAT]` 完善 `--dry-run` 离线演练：
   - 脱机演练模式下不探测 Chrome 二进制，直接输出预演卡片规格，100% 隔离外部依赖；
   - 🔍 即时验证: `python3 gen.py --account main --idea "测试选题" --dry-run` 端到端无报错。
 
@@ -275,9 +275,9 @@ safe_text = html.escape(raw_text).replace("\n", "<br/>")
 
 ## ✅ 七、 验收标准与测试回归清单 (Acceptance Criteria & Test Suite)
 
-- [ ] 三套模板就绪，支持 `quote`、`contrast`、`checklist`，双端字体（Linux `Noto Sans CJK SC`）渲染无错位；
-- [ ] `scripts/typeset_card_gen.py` 正常运行，`timeout=30s` 生效，产出 PNG 分辨率严格为 2160×2700；
-- [ ] `gen.py --account main --idea "xxx" --dry-run` 纯净脱机演练通过；
+- [x] 三套模板就绪，支持 `quote`、`contrast`、`checklist`，双端字体（Linux `Noto Sans CJK SC`）渲染无错位；
+- [x] `scripts/typeset_card_gen.py` 正常运行，`timeout=30s` 生效，产出 PNG 分辨率严格为 2160×2700；
+- [x] `gen.py --account main --idea "xxx" --dry-run` 纯净脱机演练通过；
 - [ ] `pytest tests/test_typeset_cards.py` 自动化测试 100% PASS。
 
 ---
@@ -285,12 +285,12 @@ safe_text = html.escape(raw_text).replace("\n", "<br/>")
 ## 📦 八、 交付物归档、架构文档与知识沉淀闭环 (Deliverables & Knowledge Sync)
 
 ### 8.1 交付物核对表
-- [ ] `assets/typeset-card/quote.html`
-- [ ] `assets/typeset-card/contrast.html`
-- [ ] `assets/typeset-card/checklist.html`
-- [ ] `scripts/typeset_card_gen.py`
-- [ ] `gen.py`（步骤 3 增强、`--skip-cards` 开关与占位符闭环）
-- [ ] `requirements.txt`（声明 `Pillow>=9.0.0`）
+- [x] `assets/typeset-card/quote.html`
+- [x] `assets/typeset-card/contrast.html`
+- [x] `assets/typeset-card/checklist.html`
+- [x] `scripts/typeset_card_gen.py`
+- [x] `gen.py`（步骤 3 增强、`--skip-cards` 开关与占位符闭环）
+- [x] `requirements.txt`（声明 `Pillow>=9.0.0`）
 - [ ] `tests/test_typeset_cards.py`
 
 ### 8.2 任务大盘与索引同步

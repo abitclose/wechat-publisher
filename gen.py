@@ -21,6 +21,7 @@ gen.py —— 公众号推文全流程总控编排脚本 (Master Pipeline Orches
 
 import os
 import sys
+import json
 import shutil
 import argparse
 import datetime
@@ -38,6 +39,11 @@ try:
 except ImportError as e:
     print(f"[错误] 无法加载 scripts.config 模块: {e}")
     sys.exit(1)
+
+try:
+    from typeset_card_gen import render_cards_from_file
+except ImportError:
+    render_cards_from_file = None
 
 
 # ============================================================
@@ -98,6 +104,7 @@ def run_pipeline(
     digest: Optional[str] = None,
     theme: Optional[str] = None,
     skip_cover: bool = False,
+    skip_cards: bool = False,
     skip_publish: bool = False,
 ) -> int:
     set_account(account)
@@ -122,9 +129,11 @@ def run_pipeline(
     article_file_rel = article_dir_rel / "article.md"
     article_file_abs = REPO_ROOT / article_file_rel
     brief_file_abs = article_dir_abs / "brief.md"
+    cards_data_file_rel = article_dir_rel / "cards_data.json"
+    cards_data_file_abs = REPO_ROOT / cards_data_file_rel
 
-    # 寻找 Chrome
-    chrome_bin = find_chrome_binary()
+    # 寻找 Chrome (dry-run 预演模式下不探测外部环境，纯脱机隔离)
+    chrome_bin = None if dry_run else find_chrome_binary()
 
     # 封面图生成命令与 Prompt
     cover_prompt = (
@@ -139,27 +148,6 @@ def run_pipeline(
         "--prompt", cover_prompt,
         "--ar", "16:9",
         "--image", str(cover_file_abs),
-    ]
-
-    # 正文插图 (排版卡)
-    card_html_1 = images_dir_abs / "card_01.html"
-    card_png_1 = images_dir_abs / "card_01.png"
-    card_html_2 = images_dir_abs / "card_02.html"
-    card_png_2 = images_dir_abs / "card_02.png"
-
-    chrome_cmd_1 = [
-        chrome_bin or "google-chrome",
-        "--headless=new", "--disable-gpu", "--hide-scrollbars",
-        "--force-device-scale-factor=2", "--window-size=1080,1350",
-        f"--screenshot={card_png_1}",
-        f"file://{card_html_1}",
-    ]
-    chrome_cmd_2 = [
-        chrome_bin or "google-chrome",
-        "--headless=new", "--disable-gpu", "--hide-scrollbars",
-        "--force-device-scale-factor=2", "--window-size=1080,1350",
-        f"--screenshot={card_png_2}",
-        f"file://{card_html_2}",
     ]
 
     # AI 门禁自检命令
@@ -192,7 +180,7 @@ def run_pipeline(
         print(f"▶ 选题灵感: {idea}")
         print(f"▶ 归档目录: {article_dir_rel}/")
         print(f"▶ 排版主题: {default_theme}")
-        print(f"▶ 本地 Chrome: {chrome_bin or '未检测到，建议安装 google-chrome'}")
+        print(f"▶ 本地 Chrome: {'脱机隔离 (离线演练不探测环境)' if dry_run else (chrome_bin or '未检测到，建议安装 google-chrome')}")
         print("-" * 65)
         print("预计执行的 5 个步骤与完整命令清单:\n")
 
@@ -206,8 +194,12 @@ def run_pipeline(
             print(f"  $ python3 scripts/generate_image.py \\\n      --account {account} \\\n      --prompt \"{cover_prompt[:80]}...\" \\\n      --ar 16:9 \\\n      --image {cover_file_rel}")
 
         print("\n【步骤 3】本地 Chrome 渲染 2 张 typeset-card 排版卡 (0 API 费用)")
-        print(f"  $ {chrome_cmd_1[0]} --headless=new ... --screenshot={card_png_1.name} file://{card_html_1.name}")
-        print(f"  $ {chrome_cmd_2[0]} --headless=new ... --screenshot={card_png_2.name} file://{card_html_2.name}")
+        if skip_cards:
+            print("  (已指定 --skip-cards, 跳过此步骤)")
+        else:
+            print(f"  $ python3 scripts/typeset_card_gen.py \\\n      --data-file {cards_data_file_rel} \\\n      --output-dir {article_dir_rel}/images")
+            print(f"  • 卡片 1 (金句卡 / quote): {article_dir_rel}/images/card_01.png (2160x2700 Retina)")
+            print(f"  • 卡片 2 (对比卡 / contrast): {article_dir_rel}/images/card_02.png (2160x2700 Retina)")
 
         print("\n【步骤 4】反 AI 味 6 维门禁量化检测")
         print(f"  $ {python_bin} scripts/ai_score.py {article_file_rel} --threshold 45")
@@ -221,7 +213,10 @@ def run_pipeline(
         print("\n" + "="*65)
         print("💡 资源消耗核算对账:")
         print("  • 云端模型调用: 1 次 (仅封面生成，其他正文插图与文字均为 0 消耗)")
-        print("  • 本地无头浏览器: 2 次截图渲染 (本地 CPU 执行，0 费用)")
+        if skip_cards:
+            print("  • 本地无头浏览器: 0 次 (已指定 --skip-cards, 跳过此步骤)")
+        else:
+            print("  • 本地无头浏览器: 2 次截图渲染 (本地 CPU 执行，0 费用)")
         print("  • 磁盘安全: 100% 存留于本仓库 mp-articles/ 与 generated/tmp/，绝不外溢")
         print("="*65 + "\n")
         return 0
@@ -255,19 +250,60 @@ def run_pipeline(
         print("\n[跳过] 步骤 2: 用户指定 --skip-cover")
 
     # 步骤 3: 渲染正文排版卡
-    print_step_header(3, "调用本地无头 Chrome 离线渲染排版卡 (0 费用)")
-    if not chrome_bin:
-        print("[警告] 未检测到 google-chrome，跳过排版卡截图。如需卡片请安装 Chrome。")
-    else:
-        for idx, (html_p, png_p, cmd) in enumerate([(card_html_1, card_png_1, chrome_cmd_1), (card_html_2, card_png_2, chrome_cmd_2)], 1):
-            if png_p.exists():
-                print(f"  ✓ 插图 {idx} 已存在: {png_p.name}")
-            elif html_p.exists():
-                print(f"  正在离线截图渲染插图 {idx}: {html_p.name} -> {png_p.name}")
-                subprocess.run(cmd, check=True)
-                print(f"  ✓ 渲染完成: {png_p.name}")
+    if not skip_cards:
+        print_step_header(3, "调用本地无头 Chrome 离线渲染排版卡 (0 费用)")
+        try:
+            if not cards_data_file_abs.exists():
+                print(f"  未检测到 cards_data.json，基于选题自动生成默认 2 张卡片配置...")
+                default_cards = [
+                    {
+                        "type": "quote",
+                        "filename": "card_01.png",
+                        "kicker": "QUOTE // 核心洞察",
+                        "quote": f"关于{idea[:25]}：\n与其追求表面的全自动，不如先把每一步的确定性建牢。",
+                        "accent_word": "确定性",
+                        "author": f"{account_name} · 实战手记",
+                        "footer_right": "DEEP WORK // CLARITY FIRST",
+                    },
+                    {
+                        "type": "contrast",
+                        "filename": "card_02.png",
+                        "kicker": "PARADIGM SHIFT // 认知对撞",
+                        "title": "从盲目堆叠到精准掌控",
+                        "accent_word": "精准掌控",
+                        "bad_title": "✕ 常见误区",
+                        "left_points": [
+                            "试图一键让 AI 完成所有工作",
+                            "缺乏中间产物检查与单步验证",
+                            "排查隐蔽错误花费更多时间",
+                        ],
+                        "good_title": "✓ 高手正解",
+                        "right_points": [
+                            "将复杂目标拆分为确定性小步",
+                            "关键步骤设置即时检验门禁",
+                            "人机结对，保持对全局的掌控",
+                        ],
+                        "conclusion": "小步快跑，即时验证",
+                        "footer_left": f"{account_name} 原创复盘",
+                        "footer_right": "VERIFY FAST // HUMAN IN THE LOOP",
+                    },
+                ]
+                cards_data_file_abs.write_text(json.dumps(default_cards, ensure_ascii=False, indent=2), encoding="utf-8")
+                print(f"  ✓ 默认卡片配置已持久化: {cards_data_file_rel}")
             else:
-                print(f"  (提示: 未找到 {html_p.name}，跳过此卡渲染)")
+                print(f"  ✓ 读取已有卡片配置: {cards_data_file_rel}")
+
+            if render_cards_from_file is None:
+                print("  [警告] 未能导入 scripts.typeset_card_gen 渲染引擎，跳过卡片生成。")
+            else:
+                rendered_cards = render_cards_from_file(cards_data_file_abs, images_dir_abs)
+                print(f"  ✓ 排版卡渲染完成 (共 {len(rendered_cards)} 张):")
+                for c in rendered_cards:
+                    print(f"    - {c.name}")
+        except Exception as e:
+            print(f"  [警告] 排版卡离线渲染发生异常: {e}，平滑跳过以保障流水线继续执行。")
+    else:
+        print("\n[跳过] 步骤 3: 用户指定 --skip-cards (跳过排版卡渲染)")
 
     # 步骤 4: 反 AI 味自检
     print_step_header(4, "执行反 AI 味 6 维门禁检测")
@@ -313,6 +349,7 @@ def main():
     parser.add_argument("--slug", help="指定保存文件夹的语义短英文名 (可选，默认根据 idea 智能推导)")
     parser.add_argument("--theme", help="排版主题名称 (可选，默认使用账号配置的主题)")
     parser.add_argument("--skip-cover", action="store_true", help="跳过封面生成步骤")
+    parser.add_argument("--skip-cards", action="store_true", help="跳过正文排版卡渲染步骤")
     parser.add_argument("--skip-publish", action="store_true", help="仅生成本地文章与所有配图，不推送至微信草稿箱")
 
     args = parser.parse_args()
@@ -326,6 +363,7 @@ def main():
         digest=args.digest,
         theme=args.theme,
         skip_cover=args.skip_cover,
+        skip_cards=args.skip_cards,
         skip_publish=args.skip_publish,
     )
 
