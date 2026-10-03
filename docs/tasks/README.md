@@ -9,7 +9,7 @@
 
 | 任务编号 | 任务主题 / 方案路径 | 核心涉及模块 | 核心目标 | 当前状态 |
 | :--- | :--- | :--- | :--- | :--- |
-| **Task 001** | [`001-typeset-cards-three-archetypes-and-rendering-pipeline.md`](001-typeset-cards-three-archetypes-and-rendering-pipeline.md) | `scripts/` / `tech/` / `themes/` / `gen.py` | 落地排版卡片“三剑客”（金句卡、对比卡、清单卡）生成与渲染引擎并接入主流水线 | 待评审 (Ready for Review) |
+| **Task 001** | [`001-typeset-cards-three-archetypes-and-rendering-pipeline.md`](001-typeset-cards-three-archetypes-and-rendering-pipeline.md) | `scripts/` / `tech/` / `themes/` / `gen.py` | 落地排版卡片“三剑客”（金句卡、对比卡、清单卡）生成与渲染引擎并接入主流水线 | 已交付待验收 (Ready for User Acceptance) |
 
 ---
 

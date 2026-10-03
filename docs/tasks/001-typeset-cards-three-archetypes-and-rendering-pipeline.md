@@ -2,7 +2,7 @@
 
 > **任务编号**：`docs/tasks/001-typeset-cards-three-archetypes-and-rendering-pipeline.md`  
 > **所属专题**：[`docs/tasks/README.md`](README.md)  
-> **任务状态**：`待评审 (Ready for Review)`  
+> **任务状态**：`已交付待验收 (Ready for User Acceptance)`  
 > **涉及端与模块**：`assets/typeset-card/` (模板层)、`scripts/` (卡片渲染器)、`gen.py` (流水线编排)、`tests/` (自动化测试)  
 > **创建时间**：2026-10-03  
 > **更新时间**：2026-10-03 (已完成架构审查防御加固)  
@@ -209,12 +209,12 @@ safe_text = html.escape(raw_text).replace("\n", "<br/>")
   - 🔍 即时验证: `python3 gen.py --account main --idea "测试选题" --dry-run` 端到端无报错。
 
 ### 阶段 3：自动化测试与端到端回归
-- [ ] 步骤 3.1: `[CREATE]` 编写 `tests/test_typeset_cards.py`：
+- [x] 步骤 3.1: `[CREATE]` 编写 `tests/test_typeset_cards.py`：
   - 测试三大模板的 HTML 安全注入（含双引号、换行符、HTML 标签转义）；
   - 测试实际调用 Chrome 截图生成 PNG 的尺寸（2160×2700）与非空校验；
   - 测试超时或异常参数时的友好错误抛出；
   - 🔍 即时验证: `pytest tests/test_typeset_cards.py`
-- [ ] 步骤 3.2: `[CLEANUP]` 验证并确保所有生成过程中的临时文件严格收敛在 `generated/tmp/`。
+- [x] 步骤 3.2: `[CLEANUP]` 验证并确保所有生成过程中的临时文件严格收敛在 `generated/tmp/`。
 
 ---
 
@@ -278,7 +278,7 @@ safe_text = html.escape(raw_text).replace("\n", "<br/>")
 - [x] 三套模板就绪，支持 `quote`、`contrast`、`checklist`，双端字体（Linux `Noto Sans CJK SC`）渲染无错位；
 - [x] `scripts/typeset_card_gen.py` 正常运行，`timeout=30s` 生效，产出 PNG 分辨率严格为 2160×2700；
 - [x] `gen.py --account main --idea "xxx" --dry-run` 纯净脱机演练通过；
-- [ ] `pytest tests/test_typeset_cards.py` 自动化测试 100% PASS。
+- [x] `pytest tests/test_typeset_cards.py` 自动化测试 100% PASS。
 
 ---
 
@@ -291,7 +291,7 @@ safe_text = html.escape(raw_text).replace("\n", "<br/>")
 - [x] `scripts/typeset_card_gen.py`
 - [x] `gen.py`（步骤 3 增强、`--skip-cards` 开关与占位符闭环）
 - [x] `requirements.txt`（声明 `Pillow>=9.0.0`）
-- [ ] `tests/test_typeset_cards.py`
+- [x] `tests/test_typeset_cards.py`
 
 ### 8.2 任务大盘与索引同步
 - [ ] 验收交付后，在 [`docs/tasks/README.md`](file:///home/white/github/wechat-publisher/docs/tasks/README.md) 中将 Task 001 标记为 `已完成 (Completed)`。
