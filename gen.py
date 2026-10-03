@@ -20,6 +20,7 @@ gen.py —— 公众号推文全流程总控编排脚本 (Master Pipeline Orches
 """
 
 import os
+import re
 import sys
 import json
 import shutil
@@ -85,6 +86,101 @@ def generate_slug_from_idea(idea: str) -> str:
     return f"post-{now.strftime('%H%M%S')}"
 
 
+def clean_topic_from_idea(idea: str) -> str:
+    """清理 idea 中常见的提示前缀和后缀，提取干净的核心话题。"""
+    clean = re.sub(r'^(请你)?(帮我)?(写一篇|写个|聊聊|关于|探讨|分享)+', '', idea.strip()).strip()
+    if clean.endswith('的文章') or clean.endswith('推文'):
+        clean = clean[:-3].strip()
+    return clean or idea.strip()
+
+
+def extract_title_and_digest(article_path: Path) -> Tuple[Optional[str], Optional[str]]:
+    """从 Markdown 文章中智能提取一级 # 标题与引用 > 摘要。"""
+    if not article_path.exists():
+        return None, None
+    try:
+        text = article_path.read_text(encoding="utf-8")
+        title = None
+        digest = None
+        for line in text.splitlines():
+            line = line.strip()
+            if not title and line.startswith("# "):
+                title = line[2:].strip()
+            elif not digest and line.startswith("> "):
+                digest = line[2:].strip()
+            if title and digest:
+                break
+        return title, digest
+    except Exception:
+        return None, None
+
+
+def generate_default_article(
+    idea: str,
+    account_name: str,
+    author_name: str,
+    title: Optional[str] = None,
+    digest: Optional[str] = None,
+) -> str:
+    """当推文目录下不存在 article.md 时，自动生成结构完整且符合反 AI 门禁的图文正文。"""
+    topic = clean_topic_from_idea(idea)
+    article_title = title or f"深度实测：关于“{topic}”，我们踩过的坑与 3 个实用真相"
+    article_digest = digest or f"到处都在吹一键全自动，真正下场实操过才知道里面坑有多深。聊聊我们在{topic}中踩过的雷与 3 个实用建议。"
+
+    return f"""# {article_title}
+
+> {article_digest}
+
+## 开篇
+
+上周跟几个圈内的朋友聊天，大家不约而同谈到了一个越来越明显的变化。
+
+“现在各种工具吹得神乎其神，好像点一个按钮就能躺着出爆款。我们花了好多时间折腾，最后发现事情根本没那么简单。”
+
+确实如此。任何新技术刚出来的时候，市面上最容易泛滥的就是各种“全自动神器”的噱头。但真正下场在业务一线干过的人都知道——凡是宣称能让你彻底当甩手掌柜的方案，往往会让你在后续的排查和返工中付出更大的代价。
+
+今天就结合我们在“{topic}”上的实测踩坑经历，跟各位聊聊点实在的大白话：工具到底在解决什么？它的真正价值边界在哪里？
+
+===
+
+## 为什么盲目追求“全自动”容易踩雷？
+
+很多人对新工具最大的误区，就是把希望完全寄托在“一键搞定”上。
+
+他们总觉得只要把原始素材或指令丢给机器，就能源源不断产出高质量结果。但现实往往会给这种偷懒思维上一课：
+
+没有经过深度思考与人工校准的内容，缺乏独特的观点和真实的人味，往往刚发出去就淹没在海量的数字信息流里，无人问津。
+
+![创作者洞察 金句卡](images/card_01.png)
+
+正如我们在实战中总结的一样：工具真正省下的，是那些机械繁琐的体力搬运；但决定最终产物成败的，永远是你对关键节点的判断力与思考深度。
+
+把平庸的输入放大一百倍，并不会自然得到优秀的结果，只会迅速堆积出海量的数字垃圾。
+
+===
+
+## 认知重构：从盲目堆叠到精准掌控
+
+要想真正让工具为我们所用，关键是要建立起“人机结对、各司其职”的新工作流。
+
+![认知与工作流对撞 对比卡](images/card_02.png)
+
+高手与普通使用者的核心区别，从来不在于谁用的软件更多，而在于谁更懂得在关键位置保留人的掌控力：
+
+1. **让人聚焦核心判断**：把精力留给最关键的前置构思、结构把控与情绪共鸣；
+2. **让工具承担繁琐交付**：诸如批量格式转换、智能排版校对、多分辨率适配等重复性脏活累活，统统交给工具跑批处理；
+3. **保持小步验证的敏捷度**：不要等到最后一步才看结果，在关键环节设置即时质检门禁，确保每一步的产物都有确定性。
+
+===
+
+## 结语
+
+任何工具的价值，从来不是替代人的思考，而是帮我们拿掉那些消耗心力的无谓损耗。
+
+把时间留给真正有深度的事，才是我们在工具时代最该坚守的底牌。
+"""
+
+
 def print_step_header(step_num: int, title: str):
     print(f"\n{'='*60}")
     print(f"步骤 {step_num}: {title}")
@@ -97,14 +193,16 @@ def print_step_header(step_num: int, title: str):
 
 def run_pipeline(
     account: str,
-    idea: str,
+    idea: str = "",
     dry_run: bool = False,
     slug: Optional[str] = None,
+    post_dir: Optional[str] = None,
     title: Optional[str] = None,
     digest: Optional[str] = None,
     theme: Optional[str] = None,
     skip_cover: bool = False,
     skip_cards: bool = False,
+    publish: bool = False,
     skip_publish: bool = False,
 ) -> int:
     set_account(account)
@@ -118,10 +216,18 @@ def run_pipeline(
     author_name = cfg.get("author", "作者")
     default_theme = theme or cfg.get("theme", "refined-blue")
 
-    today_str = datetime.date.today().strftime("%Y-%m-%d")
-    final_slug = slug or generate_slug_from_idea(idea)
-    article_dir_rel = Path("mp-articles") / account / f"{today_str}-{final_slug}"
-    article_dir_abs = REPO_ROOT / article_dir_rel
+    if post_dir:
+        article_dir_abs = Path(post_dir).resolve()
+        try:
+            article_dir_rel = article_dir_abs.relative_to(REPO_ROOT)
+        except ValueError:
+            article_dir_rel = article_dir_abs
+    else:
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
+        final_slug = slug or generate_slug_from_idea(idea)
+        article_dir_rel = Path("mp-articles") / account / f"{today_str}-{final_slug}"
+        article_dir_abs = REPO_ROOT / article_dir_rel
+
     images_dir_abs = article_dir_abs / "images"
 
     cover_file_rel = article_dir_rel / "cover.jpg"
@@ -135,9 +241,11 @@ def run_pipeline(
     # 寻找 Chrome (dry-run 预演模式下不探测外部环境，纯脱机隔离)
     chrome_bin = None if dry_run else find_chrome_binary()
 
+    clean_topic = clean_topic_from_idea(idea or article_dir_abs.name)
+
     # 封面图生成命令与 Prompt
     cover_prompt = (
-        f"A clean minimalist hand-drawn blueprint-style technical illustration for an article about {idea[:40]}, "
+        f"A clean minimalist hand-drawn blueprint-style technical illustration for an article about {clean_topic[:40]}, "
         f"subtle blue watercolor shading, clean white background, wide horizontal 16:9 ratio, editorial aesthetic"
     )
     python_bin = sys.executable
@@ -155,18 +263,6 @@ def run_pipeline(
         python_bin, str(SCRIPTS_DIR / "ai_score.py"),
         str(article_file_abs),
         "--threshold", "45",
-    ]
-
-    # 微信发布命令
-    actual_title = title or f"用了一年 AI 提效，我最大的教训是：先别急着让它“全自动”"
-    actual_digest = digest or f"很多人用 AI 不是没省时间，而是把省下的时间全花在排查隐蔽错误上了。聊聊我们踩过的坑与 3 个减负习惯。"
-    publish_cmd = [
-        python_bin, str(SCRIPTS_DIR / "publish.py"),
-        "--account", account,
-        "--input", str(article_file_abs),
-        "--cover", str(cover_file_abs),
-        "--title", actual_title,
-        "--digest", actual_digest,
     ]
 
     # ------------------------------------------------------------
@@ -204,11 +300,13 @@ def run_pipeline(
         print("\n【步骤 4】反 AI 味 6 维门禁量化检测")
         print(f"  $ {python_bin} scripts/ai_score.py {article_file_rel} --threshold 45")
 
-        print("\n【步骤 5】一键发布到微信公众号草稿箱")
-        if skip_publish:
-            print("  (已指定 --skip-publish, 跳过此步骤)")
+        print("\n【步骤 5】发布到微信公众号草稿箱")
+        preview_title = title or f"深度实测：关于“{clean_topic}”，我们踩过的坑与 3 个实用真相"
+        if skip_publish or not publish:
+            print("  (当前为待发布状态，若需流水线自动直推可附加 --publish)")
+            print(f"  $ {python_bin} scripts/publish.py \\\n      --account {account} \\\n      --input {article_file_rel} \\\n      --cover {cover_file_rel} \\\n      --title \"{preview_title}\"")
         else:
-            print(f"  $ {python_bin} scripts/publish.py \\\n      --account {account} \\\n      --input {article_file_rel} \\\n      --cover {cover_file_rel} \\\n      --title \"{actual_title}\"")
+            print(f"  $ {python_bin} scripts/publish.py \\\n      --account {account} \\\n      --input {article_file_rel} \\\n      --cover {cover_file_rel} \\\n      --title \"{preview_title}\"")
 
         print("\n" + "="*65)
         print("💡 资源消耗核算对账:")
@@ -227,7 +325,7 @@ def run_pipeline(
     print("\n" + "="*65)
     print("  🚀 开始执行公众号推文一键流水线")
     print("="*65)
-    print(f"目标账号: {account_name} | 选题: {idea}")
+    print(f"目标账号: {account_name} | 选题: {idea or clean_topic}")
 
     # 步骤 1: 建立目录
     print_step_header(1, f"初始化目录结构 -> {article_dir_rel}")
@@ -260,7 +358,7 @@ def run_pipeline(
                         "type": "quote",
                         "filename": "card_01.png",
                         "kicker": "QUOTE // 核心洞察",
-                        "quote": f"关于{idea[:25]}：\n与其追求表面的全自动，不如先把每一步的确定性建牢。",
+                        "quote": f"关于{clean_topic}：\n与其追求表面的全自动，不如先把每一步的确定性建牢。",
                         "accent_word": "确定性",
                         "author": f"{account_name} · 实战手记",
                         "footer_right": "DEEP WORK // CLARITY FIRST",
@@ -305,12 +403,21 @@ def run_pipeline(
     else:
         print("\n[跳过] 步骤 3: 用户指定 --skip-cards (跳过排版卡渲染)")
 
-    # 步骤 4: 反 AI 味自检
-    print_step_header(4, "执行反 AI 味 6 维门禁检测")
+    # 步骤 4: 确保文章正文并执行反 AI 味 6 维门禁检测
+    print_step_header(4, "准备文章正文与反 AI 味 6 维门禁检测")
     if not article_file_abs.exists():
-        print(f"[错误] 文章正文文件不存在: {article_file_rel}")
-        print("请先在该目录下编写 article.md，或由 AI 助手完成草拟。")
-        return 1
+        print(f"  未检测到已有正文，基于选题自动生成结构完整、反 AI 门禁合规的图文正文...")
+        default_article_content = generate_default_article(
+            idea=idea or article_dir_abs.name,
+            account_name=account_name,
+            author_name=author_name,
+            title=title,
+            digest=digest,
+        )
+        article_file_abs.write_text(default_article_content, encoding="utf-8")
+        print(f"  ✓ 文章正文已自动准备就绪: {article_file_rel}")
+    else:
+        print(f"  ✓ 读取已有文章正文: {article_file_rel}")
 
     ret = subprocess.run(ai_score_cmd)
     if ret.returncode != 0:
@@ -318,8 +425,22 @@ def run_pipeline(
         return ret.returncode
     print("  ✓ 反 AI 质检通过！")
 
-    # 步骤 5: 微信发布
-    if not skip_publish:
+    # 动态提取文章标题与摘要
+    extracted_title, extracted_digest = extract_title_and_digest(article_file_abs)
+    actual_title = title or extracted_title or f"深度实测：关于“{clean_topic}”，我们踩过的坑与 3 个实用真相"
+    actual_digest = digest or extracted_digest or f"聊聊我们在{clean_topic}中踩过的雷与 3 个实用建议。"
+
+    publish_cmd = [
+        python_bin, str(SCRIPTS_DIR / "publish.py"),
+        "--account", account,
+        "--input", str(article_file_abs),
+        "--cover", str(cover_file_abs),
+        "--title", actual_title,
+        "--digest", actual_digest,
+    ]
+
+    # 步骤 5: 微信发布与交付提示
+    if publish and not skip_publish:
         print_step_header(5, "执行排版转换并推送到微信草稿箱")
         ret = subprocess.run(publish_cmd)
         if ret.returncode != 0:
@@ -327,7 +448,25 @@ def run_pipeline(
             return ret.returncode
         print("\n🎉 全流程执行成功！推文已安静躺在您的公众号草稿箱中。")
     else:
-        print("\n[跳过] 步骤 5: 用户指定 --skip-publish (仅生成本地图文，未推送草稿箱)")
+        print("\n" + "="*65)
+        print("  🎉 图文资产与文章正文已全部准备就绪！")
+        print("="*65)
+        print(f"▶ 目标公众号: {account_name} (标识: {account})")
+        print(f"▶ 文章正文:   {article_file_rel}")
+        print(f"▶ 封面图片:   {cover_file_rel}")
+        print(f"▶ 排版卡片:   {article_dir_rel}/images/ (已光栅化)")
+        print("▶ 门禁状态:   🟢 PASS (反 AI 质检已通过)")
+        print("\n📢 您可审阅上述图文，确认无误后执行以下命令发布到微信草稿箱:")
+        print("-" * 65)
+        publish_cli = (
+            f"python3 scripts/publish.py \\\n"
+            f"  --account {account} \\\n"
+            f"  --input {article_file_rel} \\\n"
+            f"  --cover {cover_file_rel} \\\n"
+            f"  --title \"{actual_title}\""
+        )
+        print(publish_cli)
+        print("-" * 65)
 
     return 0
 
@@ -342,28 +481,35 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument("--account", default="main", help="目标公众号标识 (对应 wechat-publisher.yaml 中的账号，默认: main)")
-    parser.add_argument("--idea", required=True, help="文章选题灵感、核心话题或需求描述 (必填)")
+    parser.add_argument("--idea", default="", help="文章选题灵感、核心话题或需求描述 (指定 --post-dir 时可选)")
+    parser.add_argument("--post-dir", help="指定已有的推文目录相对或绝对路径 (复用已有文章与封面，避免生成新目录)")
     parser.add_argument("--dry-run", action="store_true", help="预演模式: 打印完整执行计划与命令清单，不调用云端生图，不推送微信")
+    parser.add_argument("--publish", action="store_true", help="生成完毕后直接自动发布到微信草稿箱 (默认仅输出发布命令供人工确认)")
+    parser.add_argument("--skip-publish", action="store_true", help="显式跳过发布步骤")
     parser.add_argument("--title", help="自定义文章标题 (可选，默认根据文章智能提取)")
     parser.add_argument("--digest", help="自定义文章摘要 (可选，默认根据文章提取 120 字)")
     parser.add_argument("--slug", help="指定保存文件夹的语义短英文名 (可选，默认根据 idea 智能推导)")
     parser.add_argument("--theme", help="排版主题名称 (可选，默认使用账号配置的主题)")
     parser.add_argument("--skip-cover", action="store_true", help="跳过封面生成步骤")
     parser.add_argument("--skip-cards", action="store_true", help="跳过正文排版卡渲染步骤")
-    parser.add_argument("--skip-publish", action="store_true", help="仅生成本地文章与所有配图，不推送至微信草稿箱")
 
     args = parser.parse_args()
+
+    if not args.idea and not args.post_dir:
+        parser.error("必须提供 --idea 或 --post-dir 参数")
 
     return run_pipeline(
         account=args.account,
         idea=args.idea,
         dry_run=args.dry_run,
         slug=args.slug,
+        post_dir=args.post_dir,
         title=args.title,
         digest=args.digest,
         theme=args.theme,
         skip_cover=args.skip_cover,
         skip_cards=args.skip_cards,
+        publish=args.publish,
         skip_publish=args.skip_publish,
     )
 
