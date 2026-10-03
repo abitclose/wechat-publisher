@@ -6,7 +6,7 @@ scripts/typeset_card_gen.py
 
 职责：
   接收 JSON 数据与卡片类型（quote / contrast / checklist），
-  安全注入 HTML 模板，调用本地无头 Google Chrome 渲染为 2160x2700 高清 Retina PNG。
+  安全注入 HTML 模板，调用本地无头 Google Chrome 渲染为 2160 宽高清 Retina PNG (支持自适应高度)。
   纯本地离线执行，0 API 消耗，中间组装 HTML 严格收敛在 generated/tmp/，渲染后立即销毁。
 """
 
@@ -14,6 +14,7 @@ import argparse
 import html
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -110,6 +111,58 @@ def build_quote_html(template: str, data: Dict[str, Any]) -> str:
     return html_out
 
 
+# 要点关键词与骨架词高精度匹配正则 (中英文方括号、六角括号、全半角冒号)
+TAG_PATTERN = re.compile(r'^\s*(?:\[|【|［)([^\]】］]{2,8})(?:\]|】|］)\s*(.+)$')
+COLON_PATTERN = re.compile(r'^\s*([^：:\s]{2,8})[：:]\s*(.+)$')
+
+
+def format_contrast_point(p: Any, bullet_cls: str, bullet_char: str) -> str:
+    """格式化单条对比要点，支持骨架词标签提炼与传统文本优雅降级。"""
+    if isinstance(p, dict):
+        tag = p.get("tag") or p.get("title")
+        body = p.get("desc") or p.get("text") or ""
+        if tag:
+            return (
+                f'<div class="point-item"><span class="point-bullet {bullet_cls}">{bullet_char}</span>'
+                f'<span class="point-badge">[{safe_escape(str(tag).strip())}]</span>'
+                f'<span class="point-text">{safe_escape(str(body).strip())}</span></div>'
+            )
+        return (
+            f'<div class="point-item"><span class="point-bullet {bullet_cls}">{bullet_char}</span>'
+            f'<span class="point-text">{safe_escape(str(body))}</span></div>'
+        )
+
+    if isinstance(p, str):
+        p_str = p.strip()
+        m_tag = TAG_PATTERN.match(p_str)
+        if m_tag:
+            tag = m_tag.group(1).strip()
+            body = m_tag.group(2).strip()
+            return (
+                f'<div class="point-item"><span class="point-bullet {bullet_cls}">{bullet_char}</span>'
+                f'<span class="point-badge">[{safe_escape(tag)}]</span>'
+                f'<span class="point-text">{safe_escape(body)}</span></div>'
+            )
+        m_colon = COLON_PATTERN.match(p_str)
+        if m_colon:
+            tag = m_colon.group(1).strip()
+            body = m_colon.group(2).strip()
+            return (
+                f'<div class="point-item"><span class="point-bullet {bullet_cls}">{bullet_char}</span>'
+                f'<span class="point-badge">[{safe_escape(tag)}]</span>'
+                f'<span class="point-text">{safe_escape(body)}</span></div>'
+            )
+        return (
+            f'<div class="point-item"><span class="point-bullet {bullet_cls}">{bullet_char}</span>'
+            f'<span class="point-text">{safe_escape(p)}</span></div>'
+        )
+
+    return (
+        f'<div class="point-item"><span class="point-bullet {bullet_cls}">{bullet_char}</span>'
+        f'<span class="point-text">{safe_escape(str(p))}</span></div>'
+    )
+
+
 def build_contrast_html(template: str, data: Dict[str, Any]) -> str:
     """组装对比卡 HTML。"""
     kicker = safe_escape(data.get("kicker", "PARADIGM SHIFT // 认知对撞"))
@@ -123,32 +176,30 @@ def build_contrast_html(template: str, data: Dict[str, Any]) -> str:
         raw_title = str(data.get("title", "别做甩手掌柜 把它当结对搭子"))
         title = apply_accent_highlight(safe_escape(raw_title), data.get("accent_word"))
 
-    # 左侧卡片 (误区/旧模式)
+    # 上方卡片 (误区/旧模式)
     left_title = safe_escape(data.get("bad_title") or data.get("left_title") or "✕ 常见误区")
     left_content_html = ""
     # 优先 points 列表，其次 desc 文本
     left_points = data.get("left_points") or (data.get("left", {}).get("points") if isinstance(data.get("left"), dict) else None)
     if left_points and isinstance(left_points, list):
-        items_html = []
-        for p in left_points:
-            items_html.append(
-                f'<div class="point-item"><span class="point-bullet bullet-bad">✕</span><span class="point-text">{safe_escape(p)}</span></div>'
-            )
+        items_html = [
+            format_contrast_point(p, "bullet-bad", "✕")
+            for p in left_points
+        ]
         left_content_html = "\n".join(items_html)
     else:
         bad_desc = data.get("bad_desc") or data.get("left_desc") or (data.get("left", {}).get("desc") if isinstance(data.get("left"), dict) else "")
         left_content_html = f'<div class="point-desc">{safe_escape(bad_desc)}</div>'
 
-    # 右侧卡片 (正解/新解法)
+    # 下方卡片 (正解/新解法)
     right_title = safe_escape(data.get("good_title") or data.get("right_title") or "✓ 高手正解")
     right_content_html = ""
     right_points = data.get("right_points") or (data.get("right", {}).get("points") if isinstance(data.get("right"), dict) else None)
     if right_points and isinstance(right_points, list):
-        items_html = []
-        for p in right_points:
-            items_html.append(
-                f'<div class="point-item"><span class="point-bullet bullet-good">✓</span><span class="point-text">{safe_escape(p)}</span></div>'
-            )
+        items_html = [
+            format_contrast_point(p, "bullet-good", "✓")
+            for p in right_points
+        ]
         right_content_html = "\n".join(items_html)
     else:
         good_desc = data.get("good_desc") or data.get("right_desc") or (data.get("right", {}).get("desc") if isinstance(data.get("right"), dict) else "")
@@ -158,8 +209,8 @@ def build_contrast_html(template: str, data: Dict[str, Any]) -> str:
     conclusion_text = data.get("conclusion") or data.get("takeaway") or data.get("pill") or "小步快跑，阶段验证"
     conclusion = safe_escape(conclusion_text)
 
-    footer_left = safe_escape(data.get("footer_left", "数效笔记 · 数小二 原创复盘"))
-    footer_right = safe_escape(data.get("footer_right", "LESS IS MORE // VERIFY FAST"))
+    footer_left = safe_escape(data.get("footer_left") or data.get("author") or "数效笔记 · 数小二 原创复盘")
+    footer_right = safe_escape(data.get("footer_right", data.get("source", "LESS IS MORE // VERIFY FAST")))
 
     html_out = template
     html_out = html_out.replace("{{KICKER}}", kicker)
@@ -170,6 +221,7 @@ def build_contrast_html(template: str, data: Dict[str, Any]) -> str:
     html_out = html_out.replace("{{RIGHT_CONTENT}}", right_content_html)
     html_out = html_out.replace("{{CONCLUSION}}", conclusion)
     html_out = html_out.replace("{{FOOTER_LEFT}}", footer_left)
+    html_out = html_out.replace("{{AUTHOR}}", footer_left)
     html_out = html_out.replace("{{FOOTER_RIGHT}}", footer_right)
     return html_out
 
@@ -273,11 +325,12 @@ def render_card(
 
         # 2. 调用 Chrome 进行 2x 无头离线渲染
         # 注意：
-        # - quote 卡支持根据文字行数自适应高度，配合透明底画布在 PIL 阶段精准按内容边界裁剪；
-        # - contrast/checklist 卡固定为 4:5 规格。Linux 无头 Chrome (--headless=new) 启动时分配 87px
+        # - quote 与 contrast 卡支持自适应动态高度，配合透明底画布在 PIL 阶段精准按内容边界裁剪；
+        #   设定 1080,3600 充裕的虚拟安全缓冲区，消除长内容截断隐患。
+        # - checklist 卡等固定为 4:5 规格。Linux 无头 Chrome (--headless=new) 启动时分配 87px
         #   窗口外壳装饰偏移，故传入 1080,1437 (1350 + 87) 确保内部视口严格达到 1350px。
-        is_quote = (card_type == "quote")
-        window_size = "1080,2400" if is_quote else "1080,1437"
+        is_dynamic_height = card_type in ("quote", "contrast")
+        window_size = "1080,3600" if is_dynamic_height else "1080,1437"
 
         cmd = [
             chrome_bin,
@@ -314,14 +367,14 @@ def render_card(
         if Image is not None:
             try:
                 with Image.open(out_path) as im:
-                    if is_quote:
-                        # 金句卡自适应高度：根据金句内容与行数动态计算高度，消除上下多余大面积留白
+                    if is_dynamic_height:
+                        # 金句卡与对比卡自适应高度：根据卡片内容动态计算高度，消除上下多余大面积留白
                         # 通过 alpha 通道 getbbox 获取实际渲染内容高度并精准裁剪
                         bbox = im.getbbox()
                         if bbox:
                             im = im.crop((0, 0, 2160, bbox[3]))
                     else:
-                        # 对比卡与清单卡为标准 4:5 固定规格 (2160x2700)
+                        # 清单卡等固定为标准 4:5 固定规格 (2160x2700)
                         # Linux 无头 Chrome (--headless=new) 会在窗口高度中预留 87px 作为窗口栏/标题装饰区域，
                         # 导致 --window-size=1080,1350 时实际网页视口缩水为 1080x1263，底部 87px 被截断并残留白条。
                         # 为确保网页真实视口严格等于 1080x1350，我们传入窗口高度 1437 (1350 + 87)，

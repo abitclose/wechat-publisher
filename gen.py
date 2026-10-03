@@ -295,7 +295,7 @@ def run_pipeline(
         else:
             print(f"  $ python3 scripts/typeset_card_gen.py \\\n      --data-file {cards_data_file_rel} \\\n      --output-dir {article_dir_rel}/images")
             print(f"  • 卡片 1 (金句卡 / quote): {article_dir_rel}/images/card_01.png (2160x自适应高度 Retina)")
-            print(f"  • 卡片 2 (对比卡 / contrast): {article_dir_rel}/images/card_02.png (2160x2700 Retina)")
+            print(f"  • 卡片 2 (对比卡 / contrast): {article_dir_rel}/images/card_02.png (2160x自适应高度 Retina)")
 
         print("\n【步骤 4】反 AI 味 6 维门禁量化检测")
         print(f"  $ {python_bin} scripts/ai_score.py {article_file_rel} --threshold 45")
