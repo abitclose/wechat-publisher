@@ -143,9 +143,10 @@ class TestSingleCardChromeRendering:
         assert out_png.is_file()
         assert out_png.stat().st_size > 0
 
-        # PIL 严格校验尺寸与格式
+        # PIL 严格校验尺寸与格式 (金句卡支持动态自适应高度：宽度固定 2160，高度根据文字自适应收敛)
         with Image.open(out_png) as im:
-            assert im.size == (2160, 2700)
+            assert im.size[0] == 2160
+            assert 800 <= im.size[1] <= 2700
             assert im.format == "PNG"
 
     def test_render_contrast_card(self, tmp_path: Path) -> None:
@@ -246,8 +247,14 @@ class TestBatchFileRendering:
             assert p.is_file()
             assert p.stat().st_size > 0
             with Image.open(p) as im:
-                assert im.size == (2160, 2700)
+                assert im.size[0] == 2160
                 assert im.format == "PNG"
+
+        # card_01 为 quote 动态自适应高度，card_02 为 checklist 固定 4:5 规格 (2160x2700)
+        with Image.open(out_dir / "card_01.png") as im:
+            assert 800 <= im.size[1] <= 2700
+        with Image.open(out_dir / "card_02.png") as im:
+            assert im.size == (2160, 2700)
 
         assert (out_dir / "card_01.png").is_file()
         assert (out_dir / "card_02.png").is_file()

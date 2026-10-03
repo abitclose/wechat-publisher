@@ -7,12 +7,9 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
     width: 1080px;
-    height: 1350px;
-    overflow: hidden;
+    background: transparent;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
-    background: #08090b;
   }
   :root {
     --mono: "SF Mono", "Ubuntu Mono", "Liberation Mono", "DejaVu Sans Mono", ui-monospace, monospace;
@@ -24,12 +21,17 @@
     --dim: #8a90a0;
     --accent: #f5a623;
   }
-  body {
+  .card {
+    width: 1080px;
     position: relative;
     background: radial-gradient(120% 80% at 50% 0%, var(--bg1) 0%, var(--bg2) 60%, #08090b 100%);
     color: var(--ink);
     font-family: var(--sans);
     -webkit-font-smoothing: antialiased;
+    padding: 70px 84px 60px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
   }
   .grid {
     position: absolute;
@@ -39,16 +41,10 @@
     background-size: 60px 60px;
     pointer-events: none;
   }
-  .wrap {
-    position: absolute;
-    inset: 0;
-    padding: 80px 84px 70px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
   .header {
     flex-shrink: 0;
+    position: relative;
+    z-index: 2;
   }
   .kicker {
     font-family: var(--mono);
@@ -61,21 +57,22 @@
     color: var(--accent);
   }
   .rule {
-    margin: 36px 0 0;
+    margin: 28px 0 0;
     height: 2px;
     background: linear-gradient(90deg, #2a2d36 0%, rgba(42, 45, 54, 0.4) 60%, transparent 100%);
   }
   .quote-container {
     position: relative;
-    margin: auto 0;
-    padding: 30px 10px;
+    margin: 55px 0 50px;
+    padding: 0 10px;
+    z-index: 2;
   }
   .quote-mark {
     position: absolute;
-    top: -120px;
-    left: -30px;
+    top: -70px;
+    left: -20px;
     font-family: var(--serif);
-    font-size: 260px;
+    font-size: 200px;
     line-height: 1;
     color: var(--accent);
     opacity: 0.10;
@@ -85,15 +82,15 @@
   .quote-text {
     position: relative;
     z-index: 2;
-    font-size: 64px;
+    font-size: 58px;
     font-weight: 700;
-    line-height: 1.45;
+    line-height: 1.48;
     letter-spacing: 0.02em;
     color: var(--ink);
     word-break: break-word;
   }
   .quote-text.long-text {
-    font-size: 50px;
+    font-size: 48px;
     line-height: 1.5;
   }
   .quote-text .em {
@@ -102,8 +99,8 @@
   }
   .foot {
     flex-shrink: 0;
-    padding-top: 36px;
-    border-top: 1px solid #23262e;
+    padding-top: 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -111,6 +108,8 @@
     font-size: 26px;
     color: var(--dim);
     letter-spacing: .03em;
+    position: relative;
+    z-index: 2;
   }
   .foot .author {
     color: #aab2c4;
@@ -123,8 +122,8 @@
 </style>
 </head>
 <body>
-  <div class="grid"></div>
-  <div class="wrap">
+  <div class="card" id="card">
+    <div class="grid"></div>
     <div class="header">
       <div class="kicker">{{KICKER}}</div>
       <div class="rule"></div>

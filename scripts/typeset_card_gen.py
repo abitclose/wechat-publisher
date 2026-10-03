@@ -272,8 +272,13 @@ def render_card(
         tmp_html_path.write_text(rendered_html, encoding="utf-8")
 
         # 2. 调用 Chrome 进行 2x 无头离线渲染
-        # 注意：Linux 无头 Chrome (--headless=new) 启动时分配 87px 窗口外壳装饰偏移，
-        # 故传入 1080,1437 (1350 + 87) 确保网页内部视口 (window.innerHeight) 严格达到 1350px。
+        # 注意：
+        # - quote 卡支持根据文字行数自适应高度，配合透明底画布在 PIL 阶段精准按内容边界裁剪；
+        # - contrast/checklist 卡固定为 4:5 规格。Linux 无头 Chrome (--headless=new) 启动时分配 87px
+        #   窗口外壳装饰偏移，故传入 1080,1437 (1350 + 87) 确保内部视口严格达到 1350px。
+        is_quote = (card_type == "quote")
+        window_size = "1080,2400" if is_quote else "1080,1437"
+
         cmd = [
             chrome_bin,
             "--headless=new",
@@ -282,7 +287,8 @@ def render_card(
             "--no-sandbox",
             "--disable-dev-shm-usage",
             "--force-device-scale-factor=2",
-            "--window-size=1080,1437",
+            f"--window-size={window_size}",
+            "--default-background-color=00000000",
             f"--screenshot={out_path}",
             f"file://{tmp_html_path.resolve()}",
         ]
@@ -308,13 +314,21 @@ def render_card(
         if Image is not None:
             try:
                 with Image.open(out_path) as im:
-                    # Linux 无头 Chrome (--headless=new) 会在窗口高度中预留 87px 作为窗口栏/标题装饰区域，
-                    # 导致 --window-size=1080,1350 时实际网页视口缩水为 1080x1263，底部 87px 被截断并残留白条。
-                    # 为确保网页真实视口严格等于 1080x1350，我们传入窗口高度 1437 (1350 + 87)，
-                    # 在 2x 缩放下渲染出 2160x2874 的截图缓冲区，前 2160x2700 即为完整的 1080x1350 网页正文。
-                    # 此处裁剪多余的底部区域，确保最终输出严格为 2160x2700，0白条且底部署名完整可见。
-                    if im.size[0] == 2160 and im.size[1] > 2700:
-                        im = im.crop((0, 0, 2160, 2700))
+                    if is_quote:
+                        # 金句卡自适应高度：根据金句内容与行数动态计算高度，消除上下多余大面积留白
+                        # 通过 alpha 通道 getbbox 获取实际渲染内容高度并精准裁剪
+                        bbox = im.getbbox()
+                        if bbox:
+                            im = im.crop((0, 0, 2160, bbox[3]))
+                    else:
+                        # 对比卡与清单卡为标准 4:5 固定规格 (2160x2700)
+                        # Linux 无头 Chrome (--headless=new) 会在窗口高度中预留 87px 作为窗口栏/标题装饰区域，
+                        # 导致 --window-size=1080,1350 时实际网页视口缩水为 1080x1263，底部 87px 被截断并残留白条。
+                        # 为确保网页真实视口严格等于 1080x1350，我们传入窗口高度 1437 (1350 + 87)，
+                        # 在 2x 缩放下渲染出 2160x2874 的截图缓冲区，前 2160x2700 即为完整的 1080x1350 网页正文。
+                        # 此处裁剪多余的底部区域，确保最终输出严格为 2160x2700，0白条且底部署名完整可见。
+                        if im.size[0] == 2160 and im.size[1] > 2700:
+                            im = im.crop((0, 0, 2160, 2700))
                     im.save(out_path, "PNG", optimize=True)
             except Exception as e:
                 # 优化失败不中断流程，保留 Chrome 原生截图
