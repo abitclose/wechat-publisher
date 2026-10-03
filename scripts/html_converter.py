@@ -237,6 +237,19 @@ def convert_markdown_to_wechat_html(
     table_rows = []
     h1_seen = False
     prev_was_h2 = False
+    prev_was_divider = False
+
+    def append_section_divider() -> bool:
+        """追加分节呼吸符，内置首尾防御与相邻重复去重。"""
+        if not html_parts:
+            return False
+        last_part = html_parts[-1].strip()
+        if divider_text in last_part or "<hr" in last_part:
+            return False
+        html_parts.append(
+            f'<p style="{styles.get("section_divider", "")}">{divider_text}</p>'
+        )
+        return True
 
     # ---- list_style 渲染辅助 ----
     def _num_token(n: int) -> str:
@@ -415,10 +428,9 @@ def convert_markdown_to_wechat_html(
         # `[SEC]` 是新主题包(2026)推荐写法,等价于旧的 `===`。
         if re.match(r'^(={3,}|~{3,})$', stripped) or stripped == "[SEC]":
             flush_list()
-            html_parts.append(
-                f'<p style="{styles.get("section_divider", "")}">{divider_text}</p>'
-            )
+            append_section_divider()
             prev_was_h2 = False
+            prev_was_divider = True
             continue
 
         # 标题
@@ -431,21 +443,24 @@ def convert_markdown_to_wechat_html(
             if level == 1 and not h1_seen:
                 h1_seen = True
                 prev_was_h2 = False
+                prev_was_divider = False
                 continue
-            # 如果两个 h2 之间已经有正文,在下一个 h2 前插一个分节符
-            if level == 2 and html_parts and not prev_was_h2:
-                html_parts.append(
-                    f'<p style="{styles.get("section_divider", "")}">{divider_text}</p>'
-                )
+            # 如果两个 h2 之间已经有正文且未显式插入分节符,在下一个 h2 前补一个分节符
+            if level == 2 and html_parts and not prev_was_h2 and not prev_was_divider:
+                append_section_divider()
             html_parts.append(f'<{tag} style="{styles[tag]}">{text}</{tag}>')
             prev_was_h2 = (level == 2)
+            prev_was_divider = False
             continue
 
         # 分割线
         if re.match(r'^(-{3,}|\*{3,}|_{3,})$', stripped):
             flush_list()
-            html_parts.append(f'<hr style="{styles["hr"]}"/>')
+            # 如果末尾已有分节符或分割线，避免重叠
+            if not (html_parts and (divider_text in html_parts[-1] or "<hr" in html_parts[-1])):
+                html_parts.append(f'<hr style="{styles["hr"]}"/>')
             prev_was_h2 = False
+            prev_was_divider = True
             continue
 
         # 无序列表
@@ -498,12 +513,14 @@ def convert_markdown_to_wechat_html(
             if alt_raw and not is_card_or_cover:
                 html_parts.append(f'<p style="{styles["caption"]}">{alt}</p>')
             prev_was_h2 = False
+            prev_was_divider = False
             continue
 
         # 普通段落
         text = process_inline(stripped)
         html_parts.append(f'<p style="{styles["p"]}">{text}</p>')
         prev_was_h2 = False
+        prev_was_divider = False
 
     flush_list()
     flush_blockquote()

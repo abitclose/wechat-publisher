@@ -268,6 +268,33 @@ def test_legacy_eq_marker_still_works(theme):
     assert divider in html
 
 
+def test_no_duplicate_divider_when_explicit_marker_before_h2(theme):
+    """当 Markdown 显式写了 === 或 [SEC] 且紧随 ## 标题时，严禁输出重复两段分节符。"""
+    md = "第一章正文内容\n\n===\n\n## 第二章标题\n\n第二章正文内容"
+    html = _convert(md, theme)
+    _, _, divider, _ = theme
+    # 分节符在全文中只应出现恰好 1 次，严禁连续两段
+    assert html.count(divider) == 1
+    assert f">{divider}</p>\n<p style=" not in html
+
+
+def test_no_duplicate_divider_on_consecutive_sec_markers(theme):
+    """连续写了多个 === 或 [SEC] 时，自动去重，只保留一个分节符。"""
+    md = "前文\n\n===\n\n===\n\n[SEC]\n\n## 下一章"
+    html = _convert(md, theme)
+    _, _, divider, _ = theme
+    assert html.count(divider) == 1
+
+
+def test_no_duplicate_divider_after_horizontal_rule(theme):
+    """当作者使用了 --- 分割线时，紧随其后的 ## 标题前严禁再叠加插入分节符。"""
+    md = "前文内容\n\n---\n\n## 结语\n\n结语内容"
+    html = _convert(md, theme)
+    _, _, divider, _ = theme
+    assert "<hr" in html
+    assert divider not in html
+
+
 def test_ol_uses_list_style_num_token(theme):
     """有序列表应按主题的 list_style.num_container/prefix/suffix 渲染数字。"""
     md = "1. 第一项\n2. 第二项\n"
