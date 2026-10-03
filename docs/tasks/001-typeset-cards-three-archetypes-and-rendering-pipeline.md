@@ -187,12 +187,12 @@ safe_text = html.escape(raw_text).replace("\n", "<br/>")
 ## 📋 四、 分步实施清单 (带显式操作意图标记)
 
 ### 阶段 1：模板体系与核心渲染引擎实施
-- [ ] 步骤 1.1: `[CREATE]` 在 `assets/typeset-card/` 下创建三大模板：
+- [x] 步骤 1.1: `[CREATE]` 在 `assets/typeset-card/` 下创建三大模板：
   - `assets/typeset-card/quote.html`（极简金句卡，半透明引号 + 弹性大字体）
   - `assets/typeset-card/contrast.html`（反差对比卡，左右双栏 + 底部结论）
   - `assets/typeset-card/checklist.html`（实操清单卡，圆点徽标 + 标题说明）
   - 🔍 即时验证: 本地 Chrome 浏览器打开验证 1080×1350 视觉排版与 `Noto Sans CJK SC` 渲染效果。
-- [ ] 步骤 1.2: `[CREATE]` 编写核心渲染器 `scripts/typeset_card_gen.py`：
+- [x] 步骤 1.2: `[CREATE]` 编写核心渲染器 `scripts/typeset_card_gen.py`：
   - 实现 JSON 数据解析与 `html.escape` 注入；
   - 封装 Chrome headless 2× 截图命令，增加 `timeout=30` 秒守护；
   - 组装 HTML 写入 `generated/tmp/`，产物 PNG 写入指定目标路径；
