@@ -272,6 +272,8 @@ def render_card(
         tmp_html_path.write_text(rendered_html, encoding="utf-8")
 
         # 2. 调用 Chrome 进行 2x 无头离线渲染
+        # 注意：Linux 无头 Chrome (--headless=new) 启动时分配 87px 窗口外壳装饰偏移，
+        # 故传入 1080,1437 (1350 + 87) 确保网页内部视口 (window.innerHeight) 严格达到 1350px。
         cmd = [
             chrome_bin,
             "--headless=new",
@@ -280,7 +282,7 @@ def render_card(
             "--no-sandbox",
             "--disable-dev-shm-usage",
             "--force-device-scale-factor=2",
-            "--window-size=1080,1350",
+            "--window-size=1080,1437",
             f"--screenshot={out_path}",
             f"file://{tmp_html_path.resolve()}",
         ]
@@ -302,14 +304,21 @@ def render_card(
         if not out_path.exists() or out_path.stat().st_size == 0:
             raise RuntimeError(f"渲染产物不存在或为空: {out_path}")
 
-        # 3. PIL 图像体积优化 (软依赖)
+        # 3. PIL 图像尺寸精确对齐与体积优化 (软依赖)
         if Image is not None:
             try:
                 with Image.open(out_path) as im:
+                    # Linux 无头 Chrome (--headless=new) 会在窗口高度中预留 87px 作为窗口栏/标题装饰区域，
+                    # 导致 --window-size=1080,1350 时实际网页视口缩水为 1080x1263，底部 87px 被截断并残留白条。
+                    # 为确保网页真实视口严格等于 1080x1350，我们传入窗口高度 1437 (1350 + 87)，
+                    # 在 2x 缩放下渲染出 2160x2874 的截图缓冲区，前 2160x2700 即为完整的 1080x1350 网页正文。
+                    # 此处裁剪多余的底部区域，确保最终输出严格为 2160x2700，0白条且底部署名完整可见。
+                    if im.size[0] == 2160 and im.size[1] > 2700:
+                        im = im.crop((0, 0, 2160, 2700))
                     im.save(out_path, "PNG", optimize=True)
             except Exception as e:
                 # 优化失败不中断流程，保留 Chrome 原生截图
-                print(f"[Warning] PIL PNG 体积优化跳过: {e}", file=sys.stderr)
+                print(f"[Warning] PIL 图像处理跳过: {e}", file=sys.stderr)
 
         return str(out_path)
 
