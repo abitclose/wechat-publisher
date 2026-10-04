@@ -11,6 +11,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Task 001** | [`001-typeset-cards-three-archetypes-and-rendering-pipeline.md`](001-typeset-cards-three-archetypes-and-rendering-pipeline.md) | `scripts/` / `tech/` / `themes/` / `gen.py` | 落地排版卡片“三剑客”（金句卡、对比卡、清单卡）生成与渲染引擎并接入主流水线 | 已交付待验收 (Ready for User Acceptance) |
 | **Task 002** | [`002-contrast-card-vertical-stack-redesign.md`](002-contrast-card-vertical-stack-redesign.md) | `assets/` / `scripts/` / `tests/` | 移动端友好型对比卡重构：由左右分栏升级为上下流式堆叠，实现非对称光影、骨架词胶囊与自适应高度 | 已完成 (Completed) |
+| **Task 003** | [`003-docker-api-service-and-architecture.md`](003-docker-api-service-and-architecture.md) | `FastAPI` / `Docker Compose` / `assets/configs/` | 将推文生成能力容器化解耦，暴露3大类RESTful API（推文、封面、YAML知识库CRUD） | 暂不实现 (Deferred / Backlog) |
 
 ---
 
