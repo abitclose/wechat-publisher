@@ -78,17 +78,36 @@ python3 scripts/wechat_api.py list-accounts
 
 Skill 自动执行 7 阶段:搜索素材 → 选结构 → 撰写 → 人味化改写 → 生成配图 → 排版转换 → AI 味自检 →发布草稿 →(可选)多平台同步。完整流程见 [`SKILL.md`](SKILL.md)。
 
-### 命令行
+### 业务规约与工作流指南
 
+完整端到端生命周期、8 种推进结构、7 种开篇 Hook 钩子、双轨配图与反 AI 门禁规范，详见核心文档：
+👉 **[`docs/ARTICLE_WORKFLOW.md`](docs/ARTICLE_WORKFLOW.md)**
+
+### 命令行使用
+
+#### 1. 一键总控流水线 (`gen.py`，推荐)
+从选题解析、封面生图、本地卡片离线渲染、反 AI 门禁到草稿箱全自动化编排：
 ```bash
-# 一键发布:Markdown → 草稿箱
+# 预演模式 (安全检查，打印执行计划与命令，不消耗 API 额度，不推送微信)
+python3 gen.py --account main --idea "普通人如何用 AI 提升效率且避坑" --dry-run
+
+# 正式执行并自动推送到微信公众号草稿箱
+python3 gen.py --account main --idea "普通人如何用 AI 提升效率且避坑" --publish
+```
+
+#### 2. 分模块独立调用
+```bash
+# 独立发布: Markdown → 草稿箱
 python3 scripts/publish.py --account main --input article.md \
   --cover cover.jpg --title "标题" --digest "摘要"
 
-# 只转排版:Markdown → 微信 HTML
+# 本地卡片离线渲染: cards_data.json → images/ (0 API 费用)
+python3 scripts/typeset_card_gen.py --data-file cards_data.json --output-dir images/
+
+# 只转排版: Markdown → 微信兼容 HTML
 python3 scripts/html_converter.py article.md --theme refined-blue -o article.html
 
-# 单独跑 AI 味检测
+# 单独跑反 AI 味 6 维检测门禁
 python3 scripts/ai_score.py article.md --threshold 45
 ```
 

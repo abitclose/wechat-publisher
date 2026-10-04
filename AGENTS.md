@@ -76,3 +76,16 @@ flowchart TD
 任务完成并通过验证后：
 1. 更新 [`docs/tasks/README.md`](file:///home/white/github/wechat-publisher/docs/tasks/README.md) 状态为 `已完成 (Completed)`；
 2. 若任务结项归档，使用 `git mv` 迁移至 `docs/tasks/archive/`。
+
+---
+
+## 4. 业务创作与推文生成规范 (Article Workflow Specification)
+
+在执行任何推文内容撰写、排版生成或发布流水线开发时，必须严格遵守核心业务规约：
+👉 **[`docs/ARTICLE_WORKFLOW.md`](file:///home/white/github/wechat-publisher/docs/ARTICLE_WORKFLOW.md)**
+
+核心创作与工程红线：
+1. **结构与钩子强绑定**：撰写正文前必须在 `brief.md` 明确 8 种推进结构之一与 7 种开篇 Hook 钩子之一，坚决消灭空泛的“随着……的飞速发展”式 AI 套话开篇；
+2. **反 AI 6 维门禁硬约束**：推文发布前必须通过 `scripts/ai_score.py` 检测，得分 $\ge 45$ 必须强制拦截重写；
+3. **双轨配图标准**：头条封面走云端生图（1 次调用），文内要点（金句、对比、清单）优先走本地无头 Chrome 排版卡渲染（0 API 消耗），临时文件严格收敛于 `generated/tmp/`。
+
